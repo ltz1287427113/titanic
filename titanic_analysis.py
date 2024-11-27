@@ -1,6 +1,14 @@
 import pandas as pd # type: ignore
 import numpy as np # type: ignore
 import matplotlib.pyplot as plt # type: ignore
+import os # 添加os模块用于处理文件路径
+
+# 创建Result文件夹（如果不存在）
+if not os.path.exists('Result'):
+    os.makedirs('Result')
+
+# 添加这一行，使用非交互式后端
+plt.switch_backend('Agg')
 
 # 设置matplotlib支持中文显示
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
@@ -51,7 +59,8 @@ plt.xlabel('性别')
 plt.ylabel('生存率')
 plt.xticks(rotation=0)
 plt.tight_layout()
-plt.show()
+plt.savefig(os.path.join('Result', 'gender_survival_rate.png'))
+plt.close()
 
 # 可视化性别生存人数分布
 plt.figure(figsize=(8, 6))
@@ -62,7 +71,8 @@ plt.ylabel('人数')
 plt.legend(['未生存', '生存'])
 plt.xticks(rotation=0)
 plt.tight_layout()
-plt.show()
+plt.savefig(os.path.join('Result', 'gender_survival_count.png'))
+plt.close()
 
 # 分析年龄对生存的影响
 print("\n年龄与生存率分析:")
@@ -93,7 +103,8 @@ plt.xlabel('年龄段')
 plt.ylabel('生存率')
 plt.xticks(rotation=45)
 plt.tight_layout()
-plt.show()
+plt.savefig(os.path.join('Result', 'age_survival_rate.png'))
+plt.close()
 
 # 可视化年龄分布
 plt.figure(figsize=(12, 6))
@@ -104,7 +115,8 @@ plt.xlabel('年龄')
 plt.ylabel('人数')
 plt.legend()
 plt.tight_layout()
-plt.show()
+plt.savefig(os.path.join('Result', 'age_distribution.png'))
+plt.close()
 
 # 箱线图显示年龄与生存关系
 plt.figure(figsize=(8, 6))
@@ -113,7 +125,8 @@ plt.title('生存状态与年龄的关系')
 plt.suptitle('')  # 这行用于删除自动生成的标题
 plt.xlabel('是否生存')
 plt.ylabel('年龄')
-plt.show()
+plt.savefig(os.path.join('Result', 'age_survival_relation.png'))
+plt.close()
 
 # 分析船票等级对生存的影响
 print("\n船票等级与生存率分析:")
@@ -136,7 +149,8 @@ plt.xlabel('船票等级')
 plt.ylabel('生存率')
 plt.xticks(rotation=0)
 plt.tight_layout()
-plt.show()
+plt.savefig(os.path.join('Result', 'pclass_survival_rate.png'))
+plt.close()
 
 # 可视化船票等级生存人数分布
 plt.figure(figsize=(8, 6))
@@ -147,7 +161,8 @@ plt.ylabel('人数')
 plt.legend(['未生存', '生存'])
 plt.xticks(rotation=0)
 plt.tight_layout()
-plt.show()
+plt.savefig(os.path.join('Result', 'pclass_survival_count.png'))
+plt.close()
 
 # 分析船票等级和性别的组合效应
 print("\n船票等级和性别的组合分析:")
@@ -166,7 +181,8 @@ plt.ylabel('生存率')
 plt.legend(title='性别')
 plt.xticks(rotation=0)
 plt.tight_layout()
-plt.show()
+plt.savefig(os.path.join('Result', 'pclass_sex_survival_rate.png'))
+plt.close()
 
 # 总结各个因素对生存率的影响
 print("\n=== 泰坦尼克号乘客生存影响因素分析总结 ===")

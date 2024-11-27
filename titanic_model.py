@@ -2,12 +2,14 @@
 import csv
 import statistics
 import random
+import os  # 添加os模块
+
+# 创建Result文件夹（如果不存在）
+if not os.path.exists('Result'):
+    os.makedirs('Result')
 
 def load_data(filename):
-    """
-    从CSV文件加载数据
-    返回: 包含所有数据的列表，每个元素是一个字典
-    """
+    """从CSV文件加载数据"""
     data = []
     with open(filename, 'r') as file:
         csv_reader = csv.DictReader(file)
@@ -16,33 +18,27 @@ def load_data(filename):
     return data
 
 def handle_missing_values(data):
-    """
-    处理数据中的缺失值
-    """
+    """处理数据中的缺失值"""
     # 收集所有非空年龄值
     ages = [float(row['Age']) for row in data if row['Age'] != '']
-    
-    # 计算年龄的平均值
     mean_age = statistics.mean(ages)
     
     # 获取最常见的登船港口
     embarked = [row['Embarked'] for row in data if row['Embarked'] != '']
     most_common_embarked = max(set(embarked), key=embarked.count)
     
+    # 收集所有非空票价
+    fares = [float(row['Fare']) for row in data if row['Fare'] != '']
+    mean_fare = statistics.mean(fares)
+    
     # 处理缺失值
     for row in data:
-        # 处理年龄缺失值
         if row['Age'] == '':
             row['Age'] = str(mean_age)
-            
-        # 处理登船港口缺失值
         if row['Embarked'] == '':
             row['Embarked'] = most_common_embarked
-            
-        # 处理船票价格缺失值
         if row['Fare'] == '':
-            row['Fare'] = '0'
-            
+            row['Fare'] = str(mean_fare)
     return data
 
 def feature_engineering(data):
@@ -50,40 +46,52 @@ def feature_engineering(data):
     processed_data = []
     
     for row in data:
-        # 创建新的特征字典
         features = {}
         
-        # 1. 转换性别为数值
+        # 基本特征
         features['is_female'] = 1 if row['Sex'] == 'female' else 0
-        
-        # 2. 转换船票等级为数值
         features['Pclass'] = int(row['Pclass'])
-        
-        # 3. 转换年龄为浮点数
         features['Age'] = float(row['Age'])
-        
-        # 4. 创建年龄段特征 (0: 儿童, 1: 成年, 2: 老年)
-        if features['Age'] < 18:
-            features['age_group'] = 0
-        elif features['Age'] < 60:
-            features['age_group'] = 1
-        else:
-            features['age_group'] = 2
-        
-        # 5. 转换票价为浮点数
         features['Fare'] = float(row['Fare'])
         
-        # 6. 创建家庭规模特征
+        # 家庭特征
         features['family_size'] = int(row['SibSp']) + int(row['Parch'])
-        
-        # 7. 创建是否独自旅行的特征
         features['is_alone'] = 1 if features['family_size'] == 0 else 0
+        features['has_family'] = 1 if features['family_size'] > 0 else 0
         
-        # 8. 转换登船港口为数值
+        # 年龄分组 (更细致的分组)
+        if features['Age'] < 12:
+            features['age_group'] = 0  # 儿童
+        elif features['Age'] < 18:
+            features['age_group'] = 1  # 青少年
+        elif features['Age'] < 35:
+            features['age_group'] = 2  # 青年
+        elif features['Age'] < 50:
+            features['age_group'] = 3  # 中年
+        else:
+            features['age_group'] = 4  # 老年
+        
+        # 票价分组 (基于数据分析的分组)
+        if features['Fare'] == 0:
+            features['fare_group'] = 0  # 免费
+        elif features['Fare'] < 10:
+            features['fare_group'] = 1  # 低价
+        elif features['Fare'] < 30:
+            features['fare_group'] = 2  # 中价
+        elif features['Fare'] < 100:
+            features['fare_group'] = 3  # 高价
+        else:
+            features['fare_group'] = 4  # 豪华
+            
+        # 登船港口编码
         port_mapping = {'S': 0, 'C': 1, 'Q': 2}
         features['Embarked'] = port_mapping.get(row['Embarked'], 0)
         
-        # 如果是训练数据，添加目标变量
+        # 重要组合特征
+        features['class_sex'] = features['is_female'] * 10 + features['Pclass']  # 性别和舱位组合
+        features['age_class'] = features['age_group'] * 3 + features['Pclass']  # 年龄和舱位组合
+        features['family_class'] = min(features['family_size'], 3) * 3 + features['Pclass']  # 家庭和舱位组合
+        
         if 'Survived' in row:
             features['Survived'] = int(row['Survived'])
             
@@ -93,20 +101,19 @@ def feature_engineering(data):
 
 def prepare_data(processed_data):
     """准备训练数据"""
-    # 定义要使用的特征
-    feature_names = ['is_female', 'Pclass', 'Age', 'age_group', 
-                    'Fare', 'family_size', 'is_alone', 'Embarked']
+    feature_names = [
+        'is_female', 'Pclass', 'Age', 'Fare', 
+        'family_size', 'is_alone', 'has_family',
+        'age_group', 'fare_group', 'Embarked',
+        'class_sex', 'age_class', 'family_class'
+    ]
     
-    # 分离特征和标签
     X = []  # 特征
     y = []  # 标签
     
     for row in processed_data:
-        # 提取特征
         features = [row[feature] for feature in feature_names]
         X.append(features)
-        
-        # 提取标签（如果存在）
         if 'Survived' in row:
             y.append(row['Survived'])
     
@@ -125,77 +132,94 @@ def split_data(X, y, test_size=0.2):
     test_indices = indices[:test_count]
     train_indices = indices[test_count:]
     
-    # 准备训练集
+    # 准备训练集和测试集
     X_train = [X[i] for i in train_indices]
     y_train = [y[i] for i in train_indices]
-    
-    # 准备测试集
     X_test = [X[i] for i in test_indices]
     y_test = [y[i] for i in test_indices]
     
     return X_train, X_test, y_train, y_test
 
 def train_model(X_train, y_train):
-    """训练简单的逻辑回归模型"""
+    """训练模型"""
+    feature_weights = {}
+    feature_means = {}
+    
     # 计算每个特征的平均值
-    feature_means = []
     for i in range(len(X_train[0])):
         values = [x[i] for x in X_train]
-        feature_means.append(sum(values) / len(values))
+        feature_means[i] = sum(values) / len(values)
     
-    # 计算权重 (使用简单的统计方法)
-    weights = []
+    # 计算每个特征的权重
     for i in range(len(X_train[0])):
-        feature_values = [x[i] for x in X_train]
-        correlation = 0
-        for j in range(len(feature_values)):
-            if feature_values[j] > feature_means[i]:
-                correlation += y_train[j]
-            else:
-                correlation -= y_train[j]
-        weights.append(correlation / len(y_train))
+        pos_count = neg_count = 0
+        for j in range(len(X_train)):
+            if X_train[j][i] > feature_means[i]:
+                if y_train[j] == 1:
+                    pos_count += 1
+                else:
+                    neg_count += 1
+        
+        # 计算权重 (使用对数比率)
+        if pos_count == 0: pos_count = 1
+        if neg_count == 0: neg_count = 1
+        weight = statistics.mean([
+            pos_count / (pos_count + neg_count),
+            1 - (neg_count / (pos_count + neg_count))
+        ])
+        feature_weights[i] = (weight - 0.5) * 2
     
-    return {'weights': weights, 'means': feature_means}
+    return {
+        'weights': feature_weights,
+        'means': feature_means,
+        'threshold': 0.4  # 根据实际生存率调整阈值
+    }
 
 def predict(model, X):
-    """使用训练好的模型进行预测"""
+    """使用模型进行预测"""
     predictions = []
     weights = model['weights']
     means = model['means']
+    threshold = model['threshold']
     
     for sample in X:
-        # 计算加权和
         score = 0
-        for i in range(len(sample)):
-            if sample[i] > means[i]:
+        for i, value in enumerate(sample):
+            if value > means[i]:
                 score += weights[i]
             else:
                 score -= weights[i]
         
-        # 根据阈值进行预测
-        prediction = 1 if score > 0 else 0
+        # 使用sigmoid函数将分数转换为概率
+        probability = 1 / (1 + 2.71828 ** (-score))
+        prediction = 1 if probability > threshold else 0
         predictions.append(prediction)
     
     return predictions
 
 def evaluate_model(y_true, y_pred):
     """评估模型性能"""
-    # 计算准确率
-    correct = sum(1 for true, pred in zip(y_true, y_pred) if true == pred)
+    correct = sum(1 for t, p in zip(y_true, y_pred) if t == p)
     accuracy = correct / len(y_true)
     
-    # 计算其他指标
-    tp = sum(1 for true, pred in zip(y_true, y_pred) if true == 1 and pred == 1)
-    fp = sum(1 for true, pred in zip(y_true, y_pred) if true == 0 and pred == 1)
-    fn = sum(1 for true, pred in zip(y_true, y_pred) if true == 1 and pred == 0)
+    tp = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 1)
+    fp = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 1)
+    fn = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 0)
+    tn = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 0)
     
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
     
     return {
         'accuracy': accuracy,
         'precision': precision,
-        'recall': recall
+        'recall': recall,
+        'f1_score': f1,
+        'confusion_matrix': {
+            'tp': tp, 'fp': fp,
+            'fn': fn, 'tn': tn
+        }
     }
 
 if __name__ == "__main__":
@@ -225,22 +249,11 @@ if __name__ == "__main__":
     print("分割训练集和验证集...")
     X_train, X_val, y_train, y_val = split_data(X, y, test_size=0.2)
     
-    # 打印数据集大小
-    print("\n数据集大小:")
-    print(f"训练集: {len(X_train)} 样本")
-    print(f"验证集: {len(X_val)} 样本")
-    
-    # 打印特征示例
-    print("\n特征示例:")
-    print("特征名称:", ['is_female', 'Pclass', 'Age', 'age_group', 
-                     'Fare', 'family_size', 'is_alone', 'Embarked'])
-    print("第一个样本:", X_train[0])
-    
     # 训练模型
     print("\n训练模型...")
     model = train_model(X_train, y_train)
     
-    # 在验证集上评估模型
+    # 评估模型
     print("\n评估模型...")
     val_predictions = predict(model, X_val)
     metrics = evaluate_model(y_val, val_predictions)
@@ -249,6 +262,13 @@ if __name__ == "__main__":
     print(f"准确率: {metrics['accuracy']:.2%}")
     print(f"精确率: {metrics['precision']:.2%}")
     print(f"召回率: {metrics['recall']:.2%}")
+    print(f"F1分数: {metrics['f1_score']:.2%}")
+    
+    print("\n混淆矩阵:")
+    print(f"真正例: {metrics['confusion_matrix']['tp']}")
+    print(f"假正例: {metrics['confusion_matrix']['fp']}")
+    print(f"假负例: {metrics['confusion_matrix']['fn']}")
+    print(f"真负例: {metrics['confusion_matrix']['tn']}")
     
     # 对测试集进行预测
     print("\n对测试集进行预测...")
@@ -263,11 +283,12 @@ if __name__ == "__main__":
             'Survived': pred
         })
     
-    # 保存预测结果
+    # 保存预测结果到Result文件夹
     print("\n保存预测结果...")
-    with open('predictions.csv', 'w', newline='') as file:
+    predictions_path = os.path.join('Result', 'predictions.csv')
+    with open(predictions_path, 'w', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=['PassengerId', 'Survived'])
         writer.writeheader()
         writer.writerows(submission)
     
-    print("预测结果已保存到 predictions.csv")
+    print(f"预测结果已保存到 {predictions_path}")
