@@ -3,10 +3,28 @@ import csv
 import statistics
 import random
 import os  # 添加os模块
+import sys
+
+# 在文件开头添加:
+class TeeOutput:
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.file = open(filename, 'w', encoding='utf-8')
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.file.write(message)
+        
+    def flush(self):
+        self.terminal.flush()
+        self.file.flush()
 
 # 创建Result文件夹（如果不存在）
 if not os.path.exists('Result'):
     os.makedirs('Result')
+
+# 重定向输出
+sys.stdout = TeeOutput(os.path.join('Result', 'model_output.md'))
 
 def load_data(filename):
     """从CSV文件加载数据"""
@@ -292,3 +310,8 @@ if __name__ == "__main__":
         writer.writerows(submission)
     
     print(f"预测结果已保存到 {predictions_path}")
+    
+    # 恢复标准输出
+    if isinstance(sys.stdout, TeeOutput):
+        sys.stdout.file.close()
+        sys.stdout = sys.stdout.terminal

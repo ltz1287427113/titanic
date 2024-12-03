@@ -2,10 +2,28 @@ import pandas as pd # type: ignore
 import numpy as np # type: ignore
 import matplotlib.pyplot as plt # type: ignore
 import os # 添加os模块用于处理文件路径
+import sys
+
+# 在文件开头添加:
+class TeeOutput:
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.file = open(filename, 'w', encoding='utf-8')
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.file.write(message)
+        
+    def flush(self):
+        self.terminal.flush()
+        self.file.flush()
 
 # 创建Result文件夹（如果不存在）
 if not os.path.exists('Result'):
     os.makedirs('Result')
+
+# 重定向输出
+sys.stdout = TeeOutput(os.path.join('Result', 'analysis_output.md'))
 
 # 添加这一行，使用非交互式后端
 plt.switch_backend('Agg')
@@ -271,4 +289,10 @@ print("   - 第一位：性别（女性生存优势明显）")
 print("   - 第二位：船票等级（高等级优势明显）")
 print("   - 第三位：年龄（影响相对较小）")
 print("\n2. 生存机会最大的组合: 高等级船舱的女性乘客")
-print("3. 生存机会最小的组合: 低等级船舱的男性乘客") 
+print("3. 生存机会最小的组合: 低等级船舱的男性乘客")
+
+# 在文件最后:
+# 恢复标准输出
+if isinstance(sys.stdout, TeeOutput):
+    sys.stdout.file.close()
+    sys.stdout = sys.stdout.terminal 
