@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt # type: ignore
 import os # 添加os模块用于处理文件路径
 import sys
 
+"""
+titanic_analysis.py用于数据分析和可视化主要功能：加载和查看数据基本信息，
+分析性别对生存率的影响，分析年龄对生存率的影响，分析船票等级对生存率的影响，
+生成各种可视化图表，输出详细的分析结论。
+"""
 # 在文件开头添加:
 class TeeOutput:
     """
