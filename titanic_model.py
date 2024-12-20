@@ -7,17 +7,41 @@ import sys
 
 # 在文件开头添加:
 class TeeOutput:
+    """
+    类TeeOutput用于同时将输出写入终端和文件，类似于Unix的tee命令。
+
+    属性:
+    - terminal: 保存当前的sys.stdout，即终端的输出。
+    - file: 打开指定的文件用于写入输出。
+    """
+
     def __init__(self, filename):
-        self.terminal = sys.stdout
-        self.file = open(filename, 'w', encoding='utf-8')
+        """
+        初始化TeeOutput实例。
+
+        参数:
+        - filename: 字符串，指定用于记录输出的文件名。
+        """
+        self.terminal = sys.stdout  # 保存当前终端的输出
+        self.file = open(filename, 'w', encoding='utf-8')  # 打开指定文件，准备写入
 
     def write(self, message):
-        self.terminal.write(message)
-        self.file.write(message)
-        
+        """
+        同时将消息写入终端和文件。
+
+        参数:
+        - message: 字符串，要写入的消息。
+        """
+        self.terminal.write(message)  # 将消息写入终端
+        self.file.write(message)  # 将消息写入文件
+
     def flush(self):
-        self.terminal.flush()
-        self.file.flush()
+        """
+        刷新终端和文件的输出缓冲，确保所有输出即时写入。
+        """
+        self.terminal.flush()  # 刷新终端的输出缓冲
+        self.file.flush()  # 刷新文件的输出缓冲
+
 
 # 创建Result文件夹（如果不存在）
 if not os.path.exists('Result'):
